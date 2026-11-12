@@ -1,0 +1,26 @@
+# systemd unit for Raspberry Pi OS. The instance name is the user that owns
+# ~/equipment-pimoroni-webrelay (see README "Install on the Raspberry Pi"):
+#   sudo cp deploy/equipment-pimoroni-webrelay@.service /etc/systemd/system/
+#   sudo systemctl enable --now equipment-pimoroni-webrelay@$USER
+# The user must be in the i2c and gpio groups (the default Raspberry Pi OS user is).
+# CAP_NET_BIND_SERVICE lets the service bind port 80 without running as root.
+
+[Unit]
+Description=equipment-pimoroni-webrelay: a state.json web relay on a Pimoroni Automation HAT
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+User=%i
+SupplementaryGroups=i2c gpio
+WorkingDirectory=/home/%i/equipment-pimoroni-webrelay
+ExecStart=/home/%i/equipment-pimoroni-webrelay/.venv/bin/equipment-pimoroni-webrelay serve
+AmbientCapabilities=CAP_NET_BIND_SERVICE
+CapabilityBoundingSet=CAP_NET_BIND_SERVICE
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target

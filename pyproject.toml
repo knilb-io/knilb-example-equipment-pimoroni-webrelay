@@ -1,0 +1,138 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "equipment-pimoroni-webrelay"
+version = "0.2.0"
+license = "MIT"
+license-files = ["LICENSE"]
+description = "A web relay (state.json API) on a Pimoroni Automation HAT and a Raspberry Pi, as Knilb test equipment"
+readme = "README.md"
+requires-python = ">=3.11"
+authors = [{ name = "nko", email = "nate@knilb.com" }]
+keywords = ["testing", "automation", "test-equipment", "pimoroni", "automation-hat", "web-relay"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3 :: Only",
+    "Framework :: FastAPI",
+    "Topic :: Software Development :: Testing",
+    "Topic :: System :: Hardware",
+]
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.30",
+    "pydantic>=2.7",
+    "python-dotenv>=1.0",
+    "pyyaml>=6.0",
+]
+
+[project.optional-dependencies]
+# The Pimoroni driver only builds on Linux (gpiod). Install it on the Pi:
+#   pip install 'equipment_pimoroni_webrelay-<version>-py3-none-any.whl[hat]'
+hat = ["automationhat>=1.0"]
+
+[project.scripts]
+equipment-pimoroni-webrelay = "equipment_pimoroni_webrelay.cli:main"
+
+[project.urls]
+Repository = "https://github.com/knilb-io/knilb-example-equipment-pimoroni-webrelay"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+equipment_pimoroni_webrelay = ["webrelay-openapi.yaml"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = [
+    "--strict-markers",
+    "--cov",
+    "--cov-report=term-missing:skip-covered",
+]
+filterwarnings = [
+    "ignore:Using .httpx. with .starlette.testclient. is deprecated",
+]
+
+[tool.coverage.run]
+branch = true
+source = ["equipment_pimoroni_webrelay"]
+
+[tool.coverage.report]
+fail_under = 90
+show_missing = true
+exclude_also = [
+    "if TYPE_CHECKING:",
+    "\\.\\.\\.",
+    "raise NotImplementedError",
+]
+
+[tool.ruff]
+line-length = 88
+target-version = "py311"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "SIM", "RUF", "D"]
+ignore = ["D105", "D107"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["D"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+files = ["src", "tests"]
+plugins = ["pydantic.mypy"]
+
+[[tool.mypy.overrides]]
+module = ["automationhat", "automationhat.*", "jsonschema", "jsonschema.*"]
+ignore_missing_imports = true
+
+[tool.semantic_release]
+commit_parser = "conventional"
+tag_format = "v{version}"
+version_toml = ["pyproject.toml:project.version"]
+major_on_zero = false
+allow_zero_version = true
+build_command = "pip install build && python -m build"
+
+[tool.semantic_release.commit_parser_options]
+allowed_tags = [
+    "feat",
+    "fix",
+    "perf",
+    "build",
+    "chore",
+    "ci",
+    "docs",
+    "style",
+    "refactor",
+    "test",
+    "ai",
+]
+minor_tags = ["feat"]
+patch_tags = ["fix", "perf"]
+
+[tool.semantic_release.changelog]
+mode = "init"
+
+[tool.semantic_release.changelog.default_templates]
+changelog_file = "CHANGELOG.md"
+
+[tool.semantic_release.branches.main]
+match = "(main|master)"
+prerelease = false
+
+[tool.semantic_release.remote]
+name = "origin"
+type = "github"
+
+[tool.semantic_release.publish]
+upload_to_vcs_release = true

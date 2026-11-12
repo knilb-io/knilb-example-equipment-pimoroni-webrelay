@@ -1,0 +1,253 @@
+openapi: 3.1.0
+
+info:
+  title: ControlByWeb WebRelay (X-WR-441) state.json API
+  version: "1.0.0"
+  description: |
+    OpenAPI description of the **REST-like** HTTP GET interface exposed by the
+    ControlByWeb WebRelay (X-WR-441) single relay and input module, as documented
+    in Section 1.1 ("HTTP GET Requests for custom applications") of the
+    *Integrating with ControlByWeb Devices* manual, using the JSON file form
+    (`state.json`).
+
+    > **Important — not strict REST.**
+    > This device does **not** follow strict REST conventions. Both *monitoring*
+    > (reading I/O state) and *control* (changing relay state, resetting timers,
+    > setting registers, etc.) are performed with the **same `GET /state.json`
+    > endpoint**. Control actions are issued by supplying query parameters
+    > (e.g. `?relay1=1`) rather than by using POST/PUT/PATCH on a resource.
+    > The structure is nonetheless close enough to REST that this specification
+    > should work out of the box with standard OpenAPI tooling and code
+    > generators, with the single caveat that a "write" is modeled as a GET with
+    > query parameters.
+
+    ### Notes carried over from the source document
+    - The `state.json` page only reports I/O that has been assigned a *Local I/O
+      Number*. `vin`, `utcTime`, `timezoneOffset`, and `serialNumber` always
+      appear.
+    - The WebRelay (X-WR-441) physically has **1 relay** (`relay1`) and
+      **1 digital input** (`digitalInput1`). Additional tags such as `onTime1`,
+      `totalOnTime1`, `count1`, `frequency1`, and `register1` are documented for
+      the 400 Series JSON interface and are included here as optional.
+    - Multiple query parameters may be combined in one request
+      (e.g. `?relay1=1&register1=10.5`).
+    - When pulsing, the `pulseTime1` parameter **must come before** `relay1=2`.
+    - If the User account is enabled, requests require HTTP Basic authentication
+      with the credentials Base64-encoded (the device documents the default
+      `none:webrelay`).
+  contact:
+    name: ControlByWeb (Xytronix Research & Design, Inc.)
+    url: https://controlbyweb.com/support/
+
+servers:
+  - url: http://{deviceHost}:{port}
+    description: Direct connection to a WebRelay device on the local network.
+    variables:
+      deviceHost:
+        default: 192.168.1.2
+        description: IP address or hostname of the WebRelay device.
+      port:
+        default: "80"
+        description: TCP port of the device web server (default 80).
+
+security:
+  - {}                       # No auth when the User account is disabled (default)
+  - basicAuth: []            # HTTP Basic (Base64) when the User account is enabled
+
+paths:
+  /state.json:
+    get:
+      operationId: getState
+      summary: Read and/or control device I/O (state.json)
+      description: |
+        Returns the current state of all I/O that has been assigned a Local I/O
+        Number, plus the always-present `vin`, `utcTime`, `timezoneOffset`, and
+        `serialNumber` fields.
+
+        **Control is performed through the same request.** Supplying any of the
+        control query parameters below (for example `relay1`, `register1`,
+        `onTime1`) instructs the device to perform that action and then return
+        the resulting state. A request with no query parameters is a pure read.
+
+        All control parameters are optional and may be combined in a single
+        request. Per the device documentation, when issuing a non-default pulse,
+        `pulseTime1` must appear **before** `relay1=2` in the query string.
+      tags:
+        - state
+      parameters:
+        - name: relay1
+          in: query
+          required: false
+          description: |
+            Control relay 1. `0` = OFF, `1` = ON, `2` = PULSE. When `2` is used,
+            the relay pulses for the configured Pulse Duration unless overridden
+            for this single pulse by a preceding `pulseTime1` parameter.
+          schema:
+            type: integer
+            enum: [0, 1, 2]
+          example: 1
+        - name: pulseTime1
+          in: query
+          required: false
+          description: |
+            Override the pulse duration (in seconds) for a single pulse of
+            relay 1. Does not change the stored Pulse Duration. Must be placed
+            **before** `relay1=2` in the query string. Has effect only when
+            paired with `relay1=2`.
+          schema:
+            type: number
+            format: float
+            minimum: 0.1
+            maximum: 86400
+          example: 5
+        - name: onTime1
+          in: query
+          required: false
+          description: >
+            Reset the "on time" counter for input 1 to the supplied value
+            (seconds). Commonly set to 0 to reset.
+          schema:
+            type: number
+            format: float
+          example: 0
+        - name: totalOnTime1
+          in: query
+          required: false
+          description: >
+            Reset the "total on time" counter for input 1 to the supplied value
+            (seconds). Commonly set to 0 to reset.
+          schema:
+            type: number
+            format: float
+          example: 0
+        - name: count1
+          in: query
+          required: false
+          description: Set the counter associated with input 1 to the supplied value.
+          schema:
+            type: number
+            format: float
+          example: 200
+        - name: register1
+          in: query
+          required: false
+          description: Set the value of register 1.
+          schema:
+            type: number
+            format: float
+          example: 10.5
+      responses:
+        "200":
+          description: |
+            The current device state after applying any control parameters.
+            Note: the device returns JSON values as **strings** (e.g. `"0"`,
+            `"12.2"`), matching the examples in the manual.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeviceState"
+              examples:
+                readOnly:
+                  summary: Pure read (no control parameters)
+                  value:
+                    digitalInput1: "0"
+                    onTime1: "0.00"
+                    totalOnTime1: "0.00"
+                    count1: "0.00"
+                    frequency1: "0.00"
+                    relay1: "0"
+                    register1: "0"
+                    vin: "12.2"
+                    utcTime: "1262394580"
+                    timezoneOffset: "-25200"
+                    serialNumber: "00:0C:C8:00:00:00"
+                afterRelayOn:
+                  summary: State returned after sending ?relay1=1
+                  value:
+                    digitalInput1: "0"
+                    relay1: "1"
+                    vin: "12.2"
+                    utcTime: "1262394580"
+                    timezoneOffset: "-25200"
+                    serialNumber: "00:0C:C8:00:00:00"
+        "401":
+          description: >
+            Authentication required. Returned when the User account is enabled
+            and valid Base64-encoded HTTP Basic credentials were not supplied.
+
+components:
+  securitySchemes:
+    basicAuth:
+      type: http
+      scheme: basic
+      description: >
+        HTTP Basic authentication, used only when the device's User account is
+        enabled. Credentials are Base64-encoded in the Authorization header.
+        The device default is `none:webrelay`.
+
+  schemas:
+    DeviceState:
+      type: object
+      description: |
+        State document returned by `state.json`. Only I/O assigned a Local I/O
+        Number is present; `vin`, `utcTime`, `timezoneOffset`, and
+        `serialNumber` always appear. All values are serialized as strings.
+        For the WebRelay (X-WR-441), the meaningful I/O is `relay1` and
+        `digitalInput1`; other I/O tags are documented for the 400 Series and
+        included here as optional.
+      properties:
+        relay1:
+          type: string
+          description: Relay 1 coil state. "0" = off (coil off), "1" = on (coil energized).
+          enum: ["0", "1"]
+          example: "0"
+        digitalInput1:
+          type: string
+          description: >
+            Digital input 1 state. "0" = off (no voltage applied), "1" = on
+            (voltage applied).
+          enum: ["0", "1"]
+          example: "0"
+        onTime1:
+          type: string
+          description: Time in seconds that input 1 has been on since last coming on.
+          example: "0.00"
+        totalOnTime1:
+          type: string
+          description: Total time in seconds that input 1 has been on.
+          example: "0.00"
+        count1:
+          type: string
+          description: Count value associated with input 1.
+          example: "0.00"
+        frequency1:
+          type: string
+          description: Frequency associated with input 1.
+          example: "0.00"
+        register1:
+          type: string
+          description: Value of register 1.
+          example: "0"
+        vin:
+          type: string
+          description: Scaled internal Vin (supply voltage) measurement. Always present.
+          example: "12.2"
+        utcTime:
+          type: string
+          description: >
+            Current UTC time expressed in seconds since January 1st, 1970.
+            Always present.
+          example: "1262394580"
+        timezoneOffset:
+          type: string
+          description: Value (seconds) to offset utcTime for local time. Always present.
+          example: "-25200"
+        serialNumber:
+          type: string
+          description: Serial number (MAC) of the device. Always present.
+          example: "00:0C:C8:00:00:00"
+      required:
+        - vin
+        - utcTime
+        - timezoneOffset
+        - serialNumber

@@ -1,0 +1,21 @@
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+equipment-pimoroni-webrelay = {path = ".", editable = true}
+
+[dev-packages]
+build = "*"
+pytest = "*"
+pytest-cov = "*"
+ruff = "*"
+mypy = "*"
+types-pyyaml = "*"
+jsonschema = "*"
+openapi-spec-validator = "*"
+httpx = "*"
+
+[requires]
+python_version = "3.12"
